@@ -16,6 +16,7 @@ namespace FCPercentage.FCPCore
 		[Inject] private PlayerDataModel playerDataModel = null!;
 		private readonly ScoreController scoreController;
 		private readonly ScoreManager scoreManager;
+		private readonly ComboController comboController;
 
 		private Dictionary<CutScoreBuffer, int> CutScoreBufferNoteCount;
 
@@ -28,15 +29,18 @@ namespace FCPercentage.FCPCore
 
 		private PlayerLevelStatsData GetPlayerLevelStatsData(PlayerDataModel playerDataModel, IDifficultyBeatmap beatmap) => playerDataModel.playerData.GetPlayerLevelStatsData(beatmap);
 
-		public ScoreTracker(SiraLog logger, [InjectOptional] ScoreController scoreController, ScoreManager scoreManager)
+		public ScoreTracker(SiraLog logger, [InjectOptional] ScoreController scoreController, ComboController comboController, ScoreManager scoreManager)
 		{
 			this.logger = logger;
 			this.scoreManager = scoreManager;
 			this.scoreController = scoreController;
+			this.comboController = comboController;
 
 			CutScoreBufferNoteCount = new Dictionary<CutScoreBuffer, int>();
 			noteCount = 0;
 		}
+
+		private void ComboController_comboBreakingEventHappenedEvent() => scoreManager.BreakCombo();
 
 		public void Initialize()
 		{
@@ -54,6 +58,8 @@ namespace FCPercentage.FCPCore
 			// Assign events
 			if (scoreController != null)
 				scoreController.scoringForNoteStartedEvent += ScoreController_scoringForNoteStartedEvent;
+			if (comboController != null)
+				comboController.comboBreakingEventHappenedEvent += ComboController_comboBreakingEventHappenedEvent;
 		}
 
 		public void Dispose()
@@ -61,6 +67,8 @@ namespace FCPercentage.FCPCore
 			// Unassign events
 			if (scoreController != null)
 				scoreController.scoringForNoteStartedEvent -= ScoreController_scoringForNoteStartedEvent;
+			if (comboController != null)
+				comboController.comboBreakingEventHappenedEvent -= ComboController_comboBreakingEventHappenedEvent;
 		}
 
 		private void ScoreController_scoringForNoteStartedEvent(ScoringElement scoringElement)
@@ -68,16 +76,20 @@ namespace FCPercentage.FCPCore
 			// Ignore bombs
 			if (IsBomb(scoringElement))
 				return;
-
+			
 			// And ignore bad cuts. But do count them for proper application of the multiplier
 			noteCount++;
+			//logger.Notice($"noteCount[{noteCount}]");
 			if (scoringElement is GoodCutScoringElement goodCutScoringElement)
 			{
 				// Track cut data
 				CutScoreBuffer cutScoreBuffer = (CutScoreBuffer)goodCutScoringElement.cutScoreBuffer;
 
 				// Add provisional score assuming it'll be a full swing to make it feel more responsive even though it may be temporarily incorrect
-				scoreManager.AddScore(goodCutScoringElement.noteData.colorType, MaxPotentialScore(cutScoreBuffer), goodCutScoringElement.maxPossibleCutScore, GetMultiplier(noteCount));
+				if (goodCutScoringElement.isFinished)
+					scoreManager.AddScore(goodCutScoringElement.noteData.colorType, cutScoreBuffer.cutScore, goodCutScoringElement.maxPossibleCutScore, GetMultiplier(noteCount));
+				else
+					scoreManager.AddScore(goodCutScoringElement.noteData.colorType, MaxPotentialScore(cutScoreBuffer), goodCutScoringElement.maxPossibleCutScore, GetMultiplier(noteCount));
 
 				if (!cutScoreBuffer.isFinished) 
 				{

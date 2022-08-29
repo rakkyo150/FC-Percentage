@@ -1,5 +1,6 @@
 ﻿#nullable enable
 
+using SiraUtil.Logging;
 using System;
 using System.Globalization;
 using UnityEngine;
@@ -11,9 +12,13 @@ namespace FCPercentage.FCPCore
 	{
 		public event EventHandler? OnScoreUpdate;
 
+		private readonly SiraLog logger;
+
 		private static double defaultPercentageAtStart = 100;
 		private static double defaultPercentageAtEnd = 0;
 		private double defaultPercentage;
+
+		public bool IsFullCombo { get; private set; }
 
 		public double PercentageTotal => CalculatePercentage(ScoreTotal, MaxScoreTotal);
 		public double PercentageA => CalculatePercentage(ScoreA, MaxScoreA);
@@ -24,7 +29,7 @@ namespace FCPercentage.FCPCore
 		public int MaxScoreTotal => MaxScoreA + MaxScoreB;
 		public int MaxScoreA { get; private set; }
 		public int MaxScoreB { get; private set; }
-		public int ScoreAtCurrentPercentage => CalculateScoreFromCurrentPercentage();
+		public int ScoreAtCurrentPercentage => IsFullCombo ? ScoreTotal : CalculateScoreFromCurrentPercentage();
 
 		public string SaberAColor { get; private set; } = "#FFFFFF";
 		public string SaberBColor { get; private set; } = "#FFFFFF";
@@ -45,8 +50,9 @@ namespace FCPercentage.FCPCore
 			return (int)Math.Round(currentRatio * MaxScoreAtLevelStart);
 		}
 		
-		public ScoreManager()
+		public ScoreManager(SiraLog logger)
 		{
+			this.logger = logger;
 			ResetScore();
 		}
 
@@ -61,6 +67,7 @@ namespace FCPercentage.FCPCore
 
 		private void ResetScore()
 		{
+			IsFullCombo = true;
 			ScoreA = 0;
 			ScoreB = 0;
 			MaxScoreA = 0;
@@ -70,6 +77,8 @@ namespace FCPercentage.FCPCore
 			MaxScoreAtLevelStart = 0;
 			defaultPercentage = defaultPercentageAtStart;
 		}
+
+		internal void BreakCombo() => IsFullCombo = false;
 
 		internal void NotifyOfSongEnded(int levelResultScoreModified)
 		{
@@ -100,17 +109,19 @@ namespace FCPercentage.FCPCore
 		internal void AddScore(ColorType colorType, int score, int maxScore, int multiplier)
 		{
 			// Update score for left or right saber
+			//logger.Notice($"Addscore: score[{score}], maxScore[{maxScore}], multiplier[{multiplier}]");
 			if (colorType == ColorType.ColorA)
 			{
 				ScoreA += score * multiplier;
 				MaxScoreA += maxScore * multiplier;
+				
 			}
 			else if (colorType == ColorType.ColorB)
 			{
 				ScoreB += score * multiplier;
 				MaxScoreB += maxScore * multiplier;
 			}
-
+			
 			// Inform listeners that the score has updated
 			InvokeScoreUpdate();
 		}
@@ -121,6 +132,7 @@ namespace FCPercentage.FCPCore
 		}
 		internal void SubtractScore(ColorType colorType, int score, int maxScore, int multiplier, bool subtractFromMaxScore = false)
 		{
+			int oldScore = ScoreTotal;
 			// Update score for left or right saber
 			if (colorType == ColorType.ColorA)
 			{
@@ -132,6 +144,7 @@ namespace FCPercentage.FCPCore
 				ScoreB -= score * multiplier;
 				if (subtractFromMaxScore) MaxScoreB -= maxScore * multiplier;
 			}
+			//logger.Notice($"SubtractScore: score[{score}], maxScore[{maxScore}], multiplier[{multiplier}]");//, oldScore[{oldScore}], scoreTotal[{ScoreTotal}]");
 
 			// Inform listeners that the score has updated
 			InvokeScoreUpdate();
@@ -167,6 +180,7 @@ namespace FCPercentage.FCPCore
 
 		protected virtual void InvokeScoreUpdate()
 		{
+			//logger.Notice($"scoreTotal[{ScoreTotal}], maxScoreTotal[{MaxScoreTotal}]");
 			// Create event handler
 			EventHandler? handler = OnScoreUpdate;
 			if (handler != null)
