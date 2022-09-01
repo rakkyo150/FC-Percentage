@@ -29,7 +29,7 @@ namespace FCPercentage.FCPCore
 
 		private PlayerLevelStatsData GetPlayerLevelStatsData(PlayerDataModel playerDataModel, IDifficultyBeatmap beatmap) => playerDataModel.playerData.GetPlayerLevelStatsData(beatmap);
 
-		public ScoreTracker(SiraLog logger, [InjectOptional] ScoreController scoreController, ComboController comboController, ScoreManager scoreManager)
+		public ScoreTracker(SiraLog logger, [InjectOptional] ScoreController scoreController, [InjectOptional] ComboController comboController, ScoreManager scoreManager)
 		{
 			this.logger = logger;
 			this.scoreManager = scoreManager;
