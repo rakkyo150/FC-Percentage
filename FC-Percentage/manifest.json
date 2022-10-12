@@ -18,6 +18,7 @@
     "CountersPlus.CustomCounter": {
       "Name": "FC Percentage",
       "CounterLocation": "FCPercentage.FCPCounter.FCPCounterController",
+      "MultiplayerReady": true,
       "ConfigDefaults": {
         "Enabled": true,
         "Position": "BelowMultiplier",
